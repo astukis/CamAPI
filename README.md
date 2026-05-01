@@ -57,6 +57,10 @@ python app.py
 ```
 5. From your browser or API client, on a device connected to the same network, use the following base URL: `http://**Your IP**:8080/`
 
+## API Documentation
+
+For detailed information about all available API endpoints, request/response formats, and usage examples, see the [API Documentation](api_info.md).
+
 ## Running as a service 
 
 - Run the following command and note down the location for python which should look like `/usr/bin/python`: `which python`
