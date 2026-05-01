@@ -1,10 +1,8 @@
-# CamUI for PiCamera2
-
-![CamUI for PiCamera2](https://github.com/monkeymademe/CamUI/blob/main/static/img/camuilogosideways.png)
+# CamAPI for PiCamera2
 
 ## Overview
 
-CamUI for picamera2 is a lightweight web interface for the Raspberry Pi camera module, built on the picamera2 Python library and using Flask. This project provides a user interface to configure camera settings, capture photos, and manage images in a basic gallery.
+CamAPI for picamera2 is a headless HTTP API for the Raspberry Pi camera module, built on the picamera2 Python library and using Flask. This project provides API endpoints to configure camera settings, capture photos, stream video, and manage images without any frontend UI.
 
 ### Old Demo
 
@@ -12,28 +10,23 @@ New Demo video will be coming soon!
 
 (If you would like to see the old demo its down below)
 
-[![Watch the Demo here](https://img.youtube.com/vi/K_pSdu5fv1M/0.jpg)](https://www.youtube.com/watch?v=K_pSdu5fv1M)
-
 ## Features
 
-- **Camera Control:** Easily configure camera settings such as image rotation, exposure, white balance settings, and many more. Take control of your Raspberry Pi Camera and instantly see the feedback!
-- **Capture Photos:** Take photos with a single click and save them to the image gallery!
-- **Image Gallery:** View, edit, delete, and download your images in a simple gallery interface.
-- **Use the stream url:** Video and Snapshot URL's are available to use in applications like OBS, VLC, Home assistent and Octoprint
-- **Multi Camera Support!:** If you are on a Raspberry Pi5 you can connect 2 cameras at the same time CamUI supports using both at the same time
- 
-## Whats new from the old Picamera2 WebUI
+- **HTTP Camera Control:** Configure camera settings via API calls, including rotation, exposure, white balance, and sensor mode.
+- **Capture Photos:** Take still images through POST requests and store them in the gallery.
+- **Image Management:** List, delete, download, and edit images through API endpoints.
+- **Streaming Support:** Use the video and snapshot URLs directly in applications such as OBS, VLC, Home Assistant, and OctoPrint.
+- **Multi-Camera Support:** Supports multiple Pi cameras on Raspberry Pi 5 and returns per-camera metadata.
 
-This project was formarally known as 'Picamera2 WebUI' but the name made me feel that it was an edit of picamera2 which its not, its a extra control layer that pulls at picamera2's strings. 
+## Headless API Upgrade
 
-- **App Name:** Its now CamUI for picamera2
-- **More effecant code:** Now v2 of CamUI will load faster and deal with camera issues better and can be maintained more easilly if more settings are added to picamera2
-- **Desktop and Mobile mode:** You can choose which template to use that suits your need. New Mobile mode means you get a more touch friendly UI!
-- **Settings all in one place:** Sensor mode has been moved to the camera controls so everything is together.
-- **Capture higher resolution images:** Before images where captured from the video feed. Now there will be a switch in camera modes when capturing photos meaning you get the maximum resoltuion and quality even when your video stream is set to low.
-- **Basic Edit mode in Image Gallery:** If you need to rotate or tweak your image after the fact, you can now do that with some basic edit options in the image gallery
-- **Fetching Metadata:** fetching sensor metadata is now possible.
-- **Removed feature - GPIO:** GPIO has been removed from this version as it needs more work done to get this feature right.
+This project is now a headless API server instead of a UI-driven web application. It exposes camera controls, image capture, streaming, and gallery management through HTTP endpoints only, making it ideal for building a separate frontend.
+
+- **Project Name:** Renamed from CamUI to CamAPI for picamera2
+- **Headless First:** No frontend templates or UI assets are required by the server.
+- **API-Driven:** All interactions are available through JSON endpoints and file downloads.
+- **Streaming and Snapshots:** Video streams and snapshots remain available via dedicated endpoints.
+- **Metadata Support:** Sensor metadata is accessible through API calls.
 
 ## What is Picamera2 Library
 
@@ -62,40 +55,40 @@ sudo apt update && sudo apt upgrade -y
 ```
 2. Clone the repository to your Raspberry Pi:
 ```bash
-git clone https://github.com/monkeymademe/picamera2-WebUI.git
+git clone https://github.com/monkeymademe/picamera2-CamAPI.git
 ```
-3. Enter the directory: 
+3. Enter the directory:
 ```bash
-cd picamera2-WebUI
+cd CamAPI
 ```
-4. Run the application and access the web interface through your browser.
+4. Run the application and access the API through your browser or API client.
 ```bash
 python app.py
 ```
-5. From your broswer, on a device connected to the same network, goto the following address: 'http://**Your IP**:8080/'
+5. From your browser or API client, on a device connected to the same network, use the following base URL: `http://**Your IP**:8080/`
 
 ## Running as a service 
 
-- Run the following command and note down the location for python which python should look like "/usr/bin/python" `which python`
-- Goto the following directory `cd /etc/systemd/system/`
-- Create and edit the following file `sudo nano picamera2-webui.service`
-- Paste this into the file, in the line "ExecStart" the 1st part should be the result of your "which python" command we did at the start (if its the same then its all good) the 2nd path is the location of the cloned repo with the app.py
+- Run the following command and note down the location for python which should look like `/usr/bin/python`: `which python`
+- Go to `/etc/systemd/system/`
+- Create and edit the service file `sudo nano picamera2-camapi.service`
+- Paste this into the file, replacing the `ExecStart` path with your Python executable and cloned repo location:
   
 ```bash
 [Unit]
-Description=CamUI Server
+Description=CamAPI Server
 After=network.target
 [Service]
 Type=simple
-ExecStart=/usr/bin/python /home/pi/CamUI/app.py
+ExecStart=/usr/bin/python /home/pi/CamAPI/app.py
 Restart=always
 [Install]
 WantedBy=multi-user.target
 ```
 - Save the file
-- Run `sudo systemctl start picamera2-webui.service` to start the service 
-- Run the following to check the service is running `sudo systemctl status picamera2-webui.service`
-- Run the following to enable the service to its running on reboot `sudo systemctl enable picamera2-webui.service`
+- Run `sudo systemctl start picamera2-camapi.service` to start the service 
+- Run `sudo systemctl status picamera2-camapi.service` to check the service
+- Run `sudo systemctl enable picamera2-camapi.service` to enable it at boot
   
 ## Compatibilty
 
@@ -130,4 +123,4 @@ Raspberry Pi Compatibilty:
   
 ## Copyright and license
 
-Code and documentation copyright 2024 the Picamera2 WebUI Authors. Code released under the MIT License. Docs released under Creative Commons.
+Code and documentation copyright 2024 the CamAPI Authors. Code released under the MIT License. Docs released under Creative Commons.

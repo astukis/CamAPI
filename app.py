@@ -6,7 +6,7 @@ import threading, subprocess
 import argparse
 
 # Flask imports
-from flask import Flask, render_template, request, jsonify, Response, send_file, abort, session, redirect, url_for
+from flask import Flask, request, jsonify, Response, send_file, abort
 import secrets
 
 # picamera2 imports
@@ -25,9 +25,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageOps, ExifTags
 ####################
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # Generates a random 32-character hexadecimal string
-# https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 ####################
 # Initialize picamera2 
@@ -51,7 +48,7 @@ print(f'\nInitialize picamera2 - Cameras Found:\n{global_cameras}\n')
 ####################
 
 version = "2.0.0 - BETA"
-project_title = "CamUI - for picamera2"
+project_title = "CamAPI - for picamera2"
 firmware_control = False
 
 # Get the directory of the current script
@@ -1121,51 +1118,37 @@ for key, camera in cameras.items():
 
 
 ####################
-# WebUI routes 
+# API routes 
 ####################
-
-@app.context_processor
-def inject_theme():
-    theme = session.get('theme', 'light')  # Default to 'light'
-    return dict(version=version, title=project_title, theme=theme)
-
-@app.context_processor
-def inject_camera_list():
-    camera_list = [(camera.camera_info, get_camera_info(camera.camera_info['Model'], camera_module_info)) 
-                   for key, camera in cameras.items()]
-    return dict(camera_list=camera_list, navbar=True)
 
 @app.route('/set_theme/<theme>')
 def set_theme(theme):
-    session['theme'] = theme
-    return jsonify(success=True, ok=True, message="Theme updated successfully")
+    return jsonify(success=True, ok=True, theme=theme, message="Theme endpoint is available in headless mode")
 
 # Define 'home' route
 @app.route('/')
 def home():
-    camera_list = [(camera.camera_info, get_camera_info(camera.camera_info['Model'], camera_module_info)) for key, camera in cameras.items()]
-    return render_template('home.html', active_page='home')
+    camera_list = [
+        {"camera_num": key, "camera_info": camera.camera_info, "module_info": get_camera_info(camera.camera_info['Model'], camera_module_info)}
+        for key, camera in cameras.items()
+    ]
+    return jsonify(status="ok", version=version, title=project_title, cameras=camera_list)
 
 @app.route('/camera_info_<int:camera_num>')
 def camera_info(camera_num):
-    # Check if the camera number exists
     camera = cameras.get(camera_num)
     if not camera:
-        return render_template('error.html', message="Error: Camera not found"), 404
-    # Get camera module spec
+        return jsonify({"error": "Camera not found"}), 404
     camera_module_spec = camera.camera_module_spec
-
-    return render_template('camera_info.html', camera_data=camera_module_spec, camera_num=camera_num)
+    return jsonify(camera_num=camera_num, camera_data=camera_module_spec)
 
 @app.route("/about")
 def about():
-    return render_template("about.html", active_page='about')
+    return jsonify(title=project_title, version=version, description="CamAPI headless camera API for picamera2")
 
 @app.route('/system_settings')
 def system_settings():
-    # Load camera module info
-    print(camera_module_info)
-    return render_template('system_settings.html', firmware_control=firmware_control, camera_modules=camera_module_info.get("camera_modules", []))
+    return jsonify(firmware_control=firmware_control, camera_modules=camera_module_info.get("camera_modules", []))
 
 @app.route('/set_camera_config', methods=['POST'])
 def set_camera_config():
@@ -1295,40 +1278,41 @@ def restart():
 
 @app.route("/camera_mobile_<int:camera_num>")
 def camera_mobile(camera_num):
-    try:
-        camera = cameras.get(camera_num)
-        if not camera:
-            return render_template('camera_not_found.html', camera_num=camera_num)
-        # Get camera settings
-        live_controls = camera.live_controls
-        print(live_controls)
-        sensor_modes = camera.sensor_modes
-        active_mode_index = camera.get_sensor_mode()
-        # Find the last image taken by this specific camera
-        last_image = None
-        last_image = image_gallery_manager.find_last_image_taken()
-        return render_template('camera_mobile.html', camera=camera.camera_info, settings=live_controls, sensor_modes=sensor_modes, active_mode_index=active_mode_index, last_image=last_image, profiles=list_profiles(),navbar=False, theme='dark', mode="mobile") 
-    except Exception as e:
-        logging.error(f"Error loading camera view: {e}")
-        return render_template('error.html', error=str(e))
+    camera = cameras.get(camera_num)
+    if not camera:
+        return jsonify({"error": "Camera not found", "camera_num": camera_num}), 404
+    live_controls = camera.live_controls
+    sensor_modes = camera.sensor_modes
+    active_mode_index = camera.get_sensor_mode()
+    last_image = image_gallery_manager.find_last_image_taken()
+    return jsonify(
+        camera=camera.camera_info,
+        settings=live_controls,
+        sensor_modes=sensor_modes,
+        active_mode_index=active_mode_index,
+        last_image=last_image,
+        profiles=list_profiles(),
+        mode="mobile"
+    )
 
 @app.route("/camera_<int:camera_num>")
 def camera(camera_num):
-    try:
-        camera = cameras.get(camera_num)
-        if not camera:
-            return render_template('camera_not_found.html', camera_num=camera_num)
-        # Get camera settings
-        live_controls = camera.live_controls
-        sensor_modes = camera.sensor_modes
-        active_mode_index = camera.get_sensor_mode()
-        # Find the last image taken by this specific camera
-        last_image = None
-        last_image = image_gallery_manager.find_last_image_taken()
-        return render_template('camera.html', camera=camera.camera_info, settings=live_controls, sensor_modes=sensor_modes, active_mode_index=active_mode_index, last_image=last_image, profiles=list_profiles(), mode="desktop")
-    except Exception as e:
-        logging.error(f"Error loading camera view: {e}")
-        return render_template('error.html', error=str(e))
+    camera = cameras.get(camera_num)
+    if not camera:
+        return jsonify({"error": "Camera not found", "camera_num": camera_num}), 404
+    live_controls = camera.live_controls
+    sensor_modes = camera.sensor_modes
+    active_mode_index = camera.get_sensor_mode()
+    last_image = image_gallery_manager.find_last_image_taken()
+    return jsonify(
+        camera=camera.camera_info,
+        settings=live_controls,
+        sensor_modes=sensor_modes,
+        active_mode_index=active_mode_index,
+        last_image=last_image,
+        profiles=list_profiles(),
+        mode="desktop"
+    )
 
 # Dictionary to track the last capture time per camera
 last_capture_time = {}
@@ -1449,8 +1433,17 @@ def update_setting():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/camera_controls')
-def redirect_to_home():
-    return redirect(url_for('home'))
+def camera_controls():
+    return jsonify({
+        "camera_controls": [
+            {
+                "camera_num": camera_num,
+                "camera_info": camera.camera_info,
+                "controls": camera.live_controls
+            }
+            for camera_num, camera in cameras.items()
+        ]
+    })
 
 @app.route("/set_sensor_mode", methods=["POST"])
 def set_sensor_mode():
@@ -1543,7 +1536,7 @@ def load_profile():
     
 @app.route("/get_profiles")
 def get_profiles():
-    return list_profiles()
+    return jsonify(list_profiles())
 
 ####################
 # GPIO routes 
@@ -1556,7 +1549,7 @@ gpio = GPIO()
 def gpio_setup():
     gpio_pins = gpio.get_gpio_pins()
     print(gpio_pins)
-    return render_template("gpio_setup.html", gpio_pins = gpio.get_gpio_pins())
+    return jsonify({"gpio_pins": gpio_pins})
 
 ####################
 # Image gallery routes 
@@ -1569,35 +1562,24 @@ image_gallery_manager = ImageGallery(upload_folder)
 def image_gallery():
     page = request.args.get('page', 1, type=int)
     images, total_pages = image_gallery_manager.paginate_images(page)
-    cameras_data = [(camera_num, camera) for camera_num, camera in cameras.items()]
-    if not images:
-        return render_template('no_files.html')
-    # Define pagination bounds
-    start_page = max(1, page - 2)  # Show previous 2 pages
-    end_page = min(total_pages, page + 2)  # Show next 2 pages
-    return render_template(
-        'image_gallery.html',
-        image_files=images,
-        page=page,
-        total_pages=total_pages,
-        start_page=start_page,
-        end_page=end_page,
-        cameras_data=cameras_data,
-        active_page='image_gallery'
-    )
+    start_page = max(1, page - 2)
+    end_page = min(total_pages, page + 2)
+    response = {
+        'image_files': images,
+        'page': page,
+        'total_pages': total_pages,
+        'start_page': start_page,
+        'end_page': end_page,
+    }
+    return jsonify(response)
 
 @app.route('/get_image_for_page')
 def get_image_for_page():
     page = request.args.get('page', 1, type=int)
     images, total_pages = image_gallery_manager.paginate_images(page)
-    cameras_data = [(camera_num, camera) for camera_num, camera in cameras.items()]
-    if not images:
-        return render_template('no_files.html')
-    # Define pagination bounds
-    start_page = max(1, page - 2)  # Show previous 2 pages
-    end_page = min(total_pages, page + 2)  # Show next 2 pages
+    start_page = max(1, page - 2)
+    end_page = min(total_pages, page + 2)
     response = {
-        
         'image_files': images,
         'page': page,
         'total_pages': total_pages,
@@ -1608,7 +1590,10 @@ def get_image_for_page():
     
 @app.route('/view_image/<filename>')
 def view_image(filename):
-    return render_template('view_image.html', filename=filename)
+    image_path = os.path.join(app.config['upload_folder'], filename)
+    if not os.path.exists(image_path):
+        return jsonify({"error": "Image not found"}), 404
+    return send_file(image_path, as_attachment=False)
 
 @app.route('/delete_image/<filename>', methods=['DELETE'])
 def delete_image(filename):
@@ -1621,19 +1606,28 @@ def delete_image(filename):
 
 @app.route('/image_edit/<filename>')
 def edit_image(filename):
-    return render_template('image_edit.html', filename=filename)
+    image_path = os.path.join(app.config['upload_folder'], filename)
+    if not os.path.exists(image_path):
+        return jsonify({"error": "Image not found"}), 404
+    return jsonify({"filename": filename, "path": image_path})
 
 @app.route("/apply_filters", methods=["POST"])
 def apply_filters():
-    filename = request.form["filename"]
-    brightness = float(request.form["brightness"])
-    contrast = float(request.form["contrast"])
-    rotation = float(request.form["rotation"])
+    data = request.get_json(silent=True)
+    if data:
+        filename = data.get("filename")
+        brightness = float(data.get("brightness", 1.0))
+        contrast = float(data.get("contrast", 1.0))
+        rotation = float(data.get("rotation", 0.0))
+    else:
+        filename = request.form.get("filename")
+        brightness = float(request.form.get("brightness", 1.0))
+        contrast = float(request.form.get("contrast", 1.0))
+        rotation = float(request.form.get("rotation", 0.0))
 
     img_path = os.path.join(app.config['upload_folder'], filename)
     img = Image.open(img_path)
 
-    # Apply transformations
     img = img.rotate(-rotation, expand=True)
     enhancer = ImageEnhance.Brightness(img)
     img = enhancer.enhance(brightness)
@@ -1644,7 +1638,11 @@ def apply_filters():
     edited_path = os.path.join(app.config['upload_folder'], edited_filename)
     img.save(edited_path)
 
-    return send_from_directory(app.config['upload_folder'], edited_filename)
+    return jsonify({
+        "success": True,
+        "edited_filename": edited_filename,
+        "download_url": f"/download_image/{edited_filename}"
+    })
 
 @app.route('/download_image/<filename>', methods=['GET'])
 def download_image(filename):
@@ -1679,7 +1677,7 @@ def save_edit():
 
 @app.route('/beta')
 def beta():
-    return render_template('beta.html')
+    return jsonify({'status': 'beta', 'message': 'CamAPI headless endpoint available'})
 
 @app.after_request
 def add_header(response):
@@ -1694,9 +1692,9 @@ def add_header(response):
 
 if __name__ == "__main__":
     # Parse any argument passed from command line
-    parser = argparse.ArgumentParser(description='PiCamera2 WebUI')
-    parser.add_argument('--port', type=int, default=8080, help='Port number to run the web server on')
-    parser.add_argument('--ip', type=str, default='0.0.0.0', help='IP to which the web server is bound to')
+    parser = argparse.ArgumentParser(description='PiCamera2 headless API server')
+    parser.add_argument('--port', type=int, default=8080, help='Port number to run the API server on')
+    parser.add_argument('--ip', type=str, default='0.0.0.0', help='IP to which the API server is bound')
     args = parser.parse_args()
     # If there are no arguments the port will be 8080 and ip 0.0.0.0 
     app.run(host=args.ip, port=args.port)
