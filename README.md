@@ -4,12 +4,6 @@
 
 CamAPI for picamera2 is a headless HTTP API for the Raspberry Pi camera module, built on the picamera2 Python library and using Flask. This project provides API endpoints to configure camera settings, capture photos, stream video, and manage images without any frontend UI.
 
-### Old Demo
-
-New Demo video will be coming soon!
-
-(If you would like to see the old demo its down below)
-
 ## Features
 
 - **HTTP Camera Control:** Configure camera settings via API calls, including rotation, exposure, white balance, and sensor mode.
@@ -32,10 +26,6 @@ This project is now a headless API server instead of a UI-driven web application
 
 This project utilizes the Picamera2 Python library. Picamera2 is the libcamera-based replacement for Picamera which was a Python interface to the Raspberry Pi's legacy camera stack. 
 For more information about Picamera2, visit [Picamera2 GitHub Repository](https://github.com/raspberrypi/picamera2).
-
-## Author
-
-- **James Mitchell**
 
 ## Getting Started
 
@@ -115,12 +105,3 @@ Raspberry Pi Compatibilty:
 - Pi Zero v2: Slower lower frame rate on feed but very useable
 - Pi Zero v1: Untested
 - Older Pi's (Model A, 2B etc): Untested but expected not to work well.
-
-## Known issues 
-
-- ScalerCrop is not working correctly
-- Saving config is currently optimal and will be reworked for the next release
-  
-## Copyright and license
-
-Code and documentation copyright 2024 the CamAPI Authors. Code released under the MIT License. Docs released under Creative Commons.
